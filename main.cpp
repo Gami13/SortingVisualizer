@@ -1,4 +1,5 @@
 // compile with: $ g++ -o main.exe main.cpp -lgdi32 -lole32 -loleaut32 -luuid
+// optimized: $ g++ -o main.exe main.cpp -lgdi32 -lole32 -loleaut32 -luuid -Ofast -march=native -flto
 
 #include <windows.h>
 #include <stdlib.h>
@@ -14,9 +15,10 @@
 // The main window class name.
 static char WINDOW_NAME[] = _T("SortTest");
 static char WINDOW_TITLE[] = _T("Sorting algorithms speed test");
-static int WINDOW_WIDTH = 1280;
-static int WINDOW_HEIGHT = 720;
+static int WINDOW_WIDTH = 1600;
+static int WINDOW_HEIGHT = 900;
 HINSTANCE instance;
+HINSTANCE VisualizationInstance;
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPSTR lpCmdLine, _In_ int nCmdShow)
 {
@@ -42,7 +44,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 	}
 
 	instance = hInstance;
-	HWND hwnd = CreateWindowEx(WS_EX_OVERLAPPEDWINDOW, WINDOW_NAME, WINDOW_TITLE, WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, WINDOW_WIDTH, WINDOW_HEIGHT, NULL, NULL, hInstance, NULL);
+	HWND hwnd = CreateWindowEx(WS_EX_OVERLAPPEDWINDOW, WINDOW_NAME, WINDOW_TITLE, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_MAXIMIZEBOX, CW_USEDEFAULT, CW_USEDEFAULT, WINDOW_WIDTH, WINDOW_HEIGHT, NULL, NULL, hInstance, NULL);
 
 	if (!hwnd)
 	{
@@ -80,6 +82,7 @@ struct Step
 	int i;
 	int j;
 };
+
 std::vector<Step> steps;
 void quicksortB(std::vector<long long int> &arr, int left, int right)
 {
@@ -96,10 +99,10 @@ void quicksortB(std::vector<long long int> &arr, int left, int right)
 			j--;
 		if (i <= j)
 		{
-			Step s;
-			s.i = i;
-			s.j = j;
-			steps.push_back(s); // save step for drawing
+			/* 			Step s;
+						s.i = i;
+						s.j = j;
+						steps.push_back(s); // save step for drawing */
 			tmp = arr[i];
 			arr[i] = arr[j];
 
@@ -173,26 +176,31 @@ std::vector<long long int> loadFrom(std::string path)
 
 	std::vector<long long int> output;
 	std::string line;
-	while (getline(file, line))
+	while (getline(file, line, ','))
 	{
 		output.push_back(std::stoi(line));
 	}
-
 	return output;
 }
 std::vector<long long int> fromFile;
 std::vector<long long int> toBeSorted;
 std::string filepath;
+static unsigned int BUTTON_HEIGHT = 60;
+static unsigned int BUTTON_WIDTH = 200;
+static unsigned int BUTTON_MARGIN = 8;
 const long long int LOAD_BUTTON = 1;
 const long long int QUICKSORT_BUTTON = 2;
 const long long int GENERATE_RANDOM_BUTTON = 3;
 const long long int SAVE_BUTTON = 4;
-const long long int AMOUNT_TO_GENERATE = 5;
-const long long int SAVE_SORTED_BUTTON = 6;
+const long long int AMOUNT_TO_GENERATE = 6;
+const long long int SAVE_SORTED_BUTTON = 5;
+const long long int STATS_DISPLAY = 7;
+const long long int VISUALIZATION = 8;
+const long long int UNSORTED_DISPLAY = 9;
+const long long int SORTED_DISPLAY = 10;
 int amountToGenerate;
-
-LRESULT CALLBACK
-WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
+BOOL CALLBACK EnumChildProc(HWND hwndChild, LPARAM lParam);
+LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
 
 	PAINTSTRUCT ps;
@@ -203,17 +211,21 @@ WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 	{
 	case WM_CREATE:
 		CreateWindow(
-			"BUTTON", "Load file to sort", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 10, 10, 200, 50, hwnd, (HMENU)LOAD_BUTTON, NULL, NULL);
+			"BUTTON", "Load file to sort", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, BUTTON_MARGIN, BUTTON_MARGIN, BUTTON_WIDTH, BUTTON_HEIGHT, hwnd, (HMENU)LOAD_BUTTON, NULL, NULL);
 		CreateWindow(
-			"BUTTON", "Quick sort", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 10, 70, 200, 50, hwnd, (HMENU)QUICKSORT_BUTTON, NULL, NULL);
+			"BUTTON", "Quick sort", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, BUTTON_MARGIN, BUTTON_MARGIN + (BUTTON_HEIGHT + BUTTON_MARGIN), BUTTON_WIDTH, BUTTON_HEIGHT, hwnd, (HMENU)QUICKSORT_BUTTON, NULL, NULL);
 		CreateWindow(
-			"BUTTON", "Generate random", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 10, 130, 200, 50, hwnd, (HMENU)GENERATE_RANDOM_BUTTON, NULL, NULL);
+			"BUTTON", "Generate random", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, BUTTON_MARGIN, BUTTON_MARGIN + (BUTTON_HEIGHT + BUTTON_MARGIN) * 2, BUTTON_WIDTH, BUTTON_HEIGHT, hwnd, (HMENU)GENERATE_RANDOM_BUTTON, NULL, NULL);
 		CreateWindow(
-			"BUTTON", "Save random to file", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 10, 190, 200, 50, hwnd, (HMENU)SAVE_BUTTON, NULL, NULL);
+			"BUTTON", "Save random to file", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, BUTTON_MARGIN, BUTTON_MARGIN + (BUTTON_HEIGHT + BUTTON_MARGIN) * 3, BUTTON_WIDTH, BUTTON_HEIGHT, hwnd, (HMENU)SAVE_BUTTON, NULL, NULL);
 		CreateWindow(
-			"BUTTON", "Save sorted to file", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 10, 250, 200, 50, hwnd, (HMENU)SAVE_SORTED_BUTTON, NULL, NULL);
+			"BUTTON", "Save sorted to file", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, BUTTON_MARGIN, BUTTON_MARGIN + (BUTTON_HEIGHT + BUTTON_MARGIN) * 4, BUTTON_WIDTH, BUTTON_HEIGHT, hwnd, (HMENU)SAVE_SORTED_BUTTON, NULL, NULL);
 
-		CreateWindow("EDIT", 0, WS_BORDER | WS_CHILD | WS_VISIBLE | ES_AUTOVSCROLL | ES_MULTILINE | ES_NUMBER, 10, 310, 200, 50, hwnd, (HMENU)AMOUNT_TO_GENERATE, NULL, NULL);
+		CreateWindow("EDIT", 0, WS_BORDER | WS_CHILD | WS_VISIBLE | ES_AUTOVSCROLL | ES_MULTILINE | ES_NUMBER, BUTTON_MARGIN, BUTTON_MARGIN + (BUTTON_HEIGHT + BUTTON_MARGIN) * 5, BUTTON_WIDTH, BUTTON_HEIGHT, hwnd, (HMENU)AMOUNT_TO_GENERATE, NULL, NULL);
+		CreateWindow("EDIT", 0, WS_BORDER | WS_CHILD | WS_VISIBLE | ES_AUTOVSCROLL | ES_MULTILINE | EM_SETREADONLY, BUTTON_MARGIN, BUTTON_MARGIN + (BUTTON_HEIGHT + BUTTON_MARGIN) * 6, BUTTON_WIDTH, 440, hwnd, (HMENU)STATS_DISPLAY, NULL, NULL);
+		CreateWindowEx(0, "STATIC", (LPCSTR)NULL, WS_CHILD | WS_BORDER | SW_SHOW | WS_VISIBLE, BUTTON_MARGIN * 2 + BUTTON_WIDTH, BUTTON_MARGIN, 1365, 600, hwnd, (HMENU)VISUALIZATION, VisualizationInstance, NULL);
+
+		EnumChildWindows(hwnd, EnumChildProc, (LPARAM)NULL);
 		/* the same for read and sorted */
 
 	case WM_COMMAND:
@@ -253,7 +265,7 @@ WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 			file.open(filepath);
 			for (int i = 0; i < toBeSorted.size(); i++)
 			{
-				file << toBeSorted[i] << std::endl;
+				file << toBeSorted[i] << ",";
 			}
 			file.close();
 			break;
@@ -277,7 +289,7 @@ WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 			file.open(filepath);
 			for (int i; i < fromFile.size(); i++)
 			{
-				file << fromFile[i] << "\n";
+				file << fromFile[i] << ",";
 			}
 			file.close();
 			break;
@@ -349,6 +361,56 @@ WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 	return 0;
 }
+HHOOK _hook;
+
+
+LRESULT __stdcall childMessageCallback(int message, WPARAM wParam, LPARAM lParam)
+{
+	
+	std::cout << message << std::endl;
+return CallNextHookEx(_hook, message, wParam, lParam);
+	
+}
+
+void setChildHook()
+{
+	std::cout << "hook" << std::endl;
+	if (!(_hook = SetWindowsHookEx(WH_GETMESSAGE, childMessageCallback, VisualizationInstance, GetCurrentThreadId())))
+	{
+		MessageBox(NULL, "Failed to install hook!", "Error", MB_ICONERROR);
+	}
+	 MSG msg;
+	 while (GetMessage(&msg, nullptr, 0, 0))
+    {
+         TranslateMessage(&msg);
+            DispatchMessage(&msg);
+        
+    }
+/* nie dziala xd */
+ 
+}
+
+BOOL CALLBACK EnumChildProc(HWND hwndChild, LPARAM lParam)
+{
+
+	int idChild = GetWindowLong(hwndChild, GWL_ID);
+
+	if (idChild == 8)
+	{
+
+		setChildHook();
+
+		std::cout << "Zlapalem dziecko :D" << std::endl;
+		/* PAINTSTRUCT ps;
+		HDC hdcChild = BeginPaint(hwndChild, &ps);
+
+		SetBkColor(hdcChild, RGB(0,0,0));
+		 */
+		InvalidateRect(hwndChild, NULL, TRUE);
+	}
+	return TRUE;
+}
+
 int main()
 {
 	WinMain(instance, NULL, 0, SW_SHOW);
