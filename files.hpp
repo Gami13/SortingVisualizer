@@ -46,12 +46,12 @@ namespace Files
 		}
 		return 0;
 	}
-	std::vector<long long int> loadFrom(std::string path)
+	std::vector<unsigned int> loadFrom(std::string path)
 	{
 		std::ifstream file;
 		file.open(path);
 
-		std::vector<long long int> output;
+		std::vector<unsigned int> output;
 		std::string line;
 		while (getline(file, line, ','))
 		{

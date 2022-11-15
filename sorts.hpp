@@ -1,7 +1,7 @@
 namespace Sorts
 {
 
-	static void quicksortB(std::vector<long long int> &arr, int left, int right)
+	static void quicksortB(std::vector<unsigned int> &arr, int left, int right)
 	{
 		int i = left, j = right;
 		int tmp;
@@ -36,8 +36,23 @@ namespace Sorts
 			quicksortB(arr, i, right);
 	}
 
-	static void quicksort(std::vector<long long int> &arr)
+	static void quicksort(std::vector<unsigned int> &arr)
 	{
 		Sorts::quicksortB(arr, 0, arr.size() - 1);
+	}
+	void sort(std::vector<unsigned int> arr, int passes, void (*function)(std::vector<unsigned int> &))
+	{
+		int i = 0;
+		while (i < passes)
+		{
+
+			auto start = std::chrono::steady_clock::now();
+			function(arr);
+
+			auto finish = std::chrono::steady_clock::now();
+
+			std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(finish - start).count() << "ms" << std::endl;
+			i++;
+		}
 	}
 }

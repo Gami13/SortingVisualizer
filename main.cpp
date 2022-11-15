@@ -10,19 +10,52 @@
 #include <shobjidl.h>
 #include <chrono>
 #include <fstream>
-#include <future>
 #include <thread>
+#include <algorithm>
 struct Step
 {
 	int i;
 	int j;
 };
-std::future<int> kek;
+
 std::vector<Step> steps;
 #include "sorts.hpp"
 #include "files.hpp"
 
-std::string vectorToString(std::vector<long long int> v)
+#define LOAD_BUTTON 1
+#define QUICKSORT_BUTTON 2
+#define GENERATE_RANDOM_BUTTON 3
+#define SAVE_BUTTON 4
+#define AMOUNT_TO_GENERATE 6
+#define SAVE_SORTED_BUTTON 5
+#define STATS_DISPLAY 7
+#define VISUALIZATION 8
+#define UNSORTED_DISPLAY 9
+#define SORTED_DISPLAY 10
+#define BUBBLE_SORT_BUTTON 11
+#define INSERTION_SORT_BUTTON 12
+#define SELECTION_SORT_BUTTON 13
+#define MERGE_SORT_BUTTON 14
+#define HEAP_SORT_BUTTON 15
+#define COMB_SORT_BUTTON 16
+#define SHELL_SORT_BUTTON 17
+#define CYCLE_SORT_BUTTON 18
+#define GNOME_SORT_BUTTON 19
+
+#define TIME_BETWEEN_STEPS 10
+#define BUTTON_HEIGHT 40
+#define BUTTON_WIDTH 200
+#define BUTTON_MARGIN 8
+#define GENERATOR_HEIGHT 35
+#define SHORT_BUTTON_WIDTH BUTTON_WIDTH / 2 - BUTTON_MARGIN / 2
+#define LEFT_BUTTON_X_POS BUTTON_MARGIN
+#define RIGHT_BUTTON_X_POS BUTTON_MARGIN + SHORT_BUTTON_WIDTH + BUTTON_MARGIN
+
+#define WINDOW_WIDTH 1600
+#define WINDOW_HEIGHT 900
+#define VISUALIZATION_WIDTH 1365
+#define VISUALIZATION_HEIGHT 600
+std::string vectorToString(std::vector<unsigned int> v)
 {
 	std::string s = "";
 	for (int i = 0; i < v.size(); i++)
@@ -32,56 +65,23 @@ std::string vectorToString(std::vector<long long int> v)
 	return s;
 }
 
-std::vector<long long int> fromFile;
-std::vector<long long int> toBeSorted;
-std::vector<long long int> visualizationArray;
+std::vector<unsigned int> fromFile;
+std::vector<unsigned int> toBeSorted;
+std::vector<unsigned int> visualizationArray;
 std::string filepath;
-bool shouldVisualize = true;
-static unsigned int BUTTON_HEIGHT = 60;
-static unsigned int BUTTON_WIDTH = 200;
-static unsigned int BUTTON_MARGIN = 8;
-const long long int LOAD_BUTTON = 1;
-const long long int QUICKSORT_BUTTON = 2;
-const long long int GENERATE_RANDOM_BUTTON = 3;
-const long long int SAVE_BUTTON = 4;
-const long long int AMOUNT_TO_GENERATE = 6;
-const long long int SAVE_SORTED_BUTTON = 5;
-const long long int STATS_DISPLAY = 7;
-const long long int VISUALIZATION = 8;
-const long long int UNSORTED_DISPLAY = 9;
-const long long int SORTED_DISPLAY = 10;
-int amountToGenerate;
+bool shouldVisualize = false;
+
+int amountToGenerate = 0;
 
 // The main window class name.
 static char WINDOW_NAME[] = _T("SortTest");
 static char WINDOW_TITLE[] = _T("Sorting algorithms speed test");
-static int WINDOW_WIDTH = 1600;
-static int WINDOW_HEIGHT = 900;
-const int VISUALIZATION_WIDTH = 1365;
-const int VISUALIZATION_HEIGHT = 600;
+
 HINSTANCE instance;
 HINSTANCE VisualizationInstance;
 HWND w2;
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
-int visualize()
-{
-	std::cout << "Visualizing" << std::endl;
-	for (int i = 0; i < steps.size(); i++)
-	{
-		long long int temp = visualizationArray[steps[i].i];
-		visualizationArray[steps[i].i] = visualizationArray[steps[i].j];
-		visualizationArray[steps[i].j] = temp;
-		std::cout << "step: " << i << std::endl;
-		InvalidateRect(w2, NULL, TRUE);
 
-		std::this_thread::sleep_for(std::chrono::milliseconds(10));
-	}
-	for (int i = 0; i < visualizationArray.size(); i++)
-	{
-		std::cout << visualizationArray[i] << ", ";
-	}
-	return 1;
-}
 int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPSTR lpCmdLine, _In_ int nCmdShow)
 {
 	WNDCLASSEX wcex;
@@ -94,7 +94,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 	wcex.hInstance = hInstance;
 	wcex.hIcon = LoadIcon(wcex.hInstance, IDI_APPLICATION);
 	wcex.hCursor = LoadCursor(NULL, IDC_ARROW);
-	wcex.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
+	wcex.hbrBackground = NULL;
 	wcex.lpszMenuName = NULL;
 	wcex.lpszClassName = WINDOW_NAME;
 	wcex.hIconSm = LoadIcon(wcex.hInstance, IDI_APPLICATION);
@@ -129,40 +129,6 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 	return (int)msg.wParam;
 }
 
-/* child messages */
-LRESULT CALLBACK Proc2(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
-{
-
-	PAINTSTRUCT ps;
-	HDC hdc{GetDC(hwnd)};
-	HPEN hpendot = CreatePen(PS_SOLID, 1, RGB(0, 0, 0));
-	switch (msg)
-	{
-	case WM_CREATE:
-		printf("-------\n");
-		return 0;
-	case WM_PAINT:
-		hdc = BeginPaint(hwnd, &ps);
-
-		if (shouldVisualize)
-		{
-			for (int i = 0; i < visualizationArray.size(); i++)
-			{
-				SelectObject(hdc, hpendot);
-				Rectangle(hdc, i * 2, VISUALIZATION_HEIGHT, i * 2 + 2, VISUALIZATION_HEIGHT - visualizationArray[i]);
-				// r.left, r.top, r.right, r.bottom
-				// TODO: fancy math so rectangles dont overflow :D maybe fix flicker, steps dont empty after a run is finished
-			}
-		}
-		EndPaint(hwnd, &ps);
-		break;
-
-	default:
-		return DefWindowProc(hwnd, msg, wParam, lParam);
-	}
-	return 0;
-}
-
 /* BOOL CALLBACK EnumChildProc(HWND hwndChild, LPARAM lParam); */
 LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
@@ -174,19 +140,40 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 	switch (message)
 	{
 	case WM_CREATE:
-		CreateWindow(
-			"BUTTON", "Load file to sort", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, BUTTON_MARGIN, BUTTON_MARGIN, BUTTON_WIDTH, BUTTON_HEIGHT, hwnd, (HMENU)LOAD_BUTTON, NULL, NULL);
-		CreateWindow(
-			"BUTTON", "Quick sort", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, BUTTON_MARGIN, BUTTON_MARGIN + (BUTTON_HEIGHT + BUTTON_MARGIN), BUTTON_WIDTH, BUTTON_HEIGHT, hwnd, (HMENU)QUICKSORT_BUTTON, NULL, NULL);
-		CreateWindow(
-			"BUTTON", "Generate random", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, BUTTON_MARGIN, BUTTON_MARGIN + (BUTTON_HEIGHT + BUTTON_MARGIN) * 2, BUTTON_WIDTH, BUTTON_HEIGHT, hwnd, (HMENU)GENERATE_RANDOM_BUTTON, NULL, NULL);
-		CreateWindow(
-			"BUTTON", "Save random to file", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, BUTTON_MARGIN, BUTTON_MARGIN + (BUTTON_HEIGHT + BUTTON_MARGIN) * 3, BUTTON_WIDTH, BUTTON_HEIGHT, hwnd, (HMENU)SAVE_BUTTON, NULL, NULL);
-		CreateWindow(
-			"BUTTON", "Save sorted to file", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, BUTTON_MARGIN, BUTTON_MARGIN + (BUTTON_HEIGHT + BUTTON_MARGIN) * 4, BUTTON_WIDTH, BUTTON_HEIGHT, hwnd, (HMENU)SAVE_SORTED_BUTTON, NULL, NULL);
+		CreateWindow("BUTTON", "Load file", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, LEFT_BUTTON_X_POS, BUTTON_MARGIN, SHORT_BUTTON_WIDTH, BUTTON_HEIGHT, hwnd, (HMENU)LOAD_BUTTON, NULL, NULL);
 
-		CreateWindow("EDIT", 0, WS_BORDER | WS_CHILD | WS_VISIBLE | ES_AUTOVSCROLL | ES_MULTILINE | ES_NUMBER, BUTTON_MARGIN, BUTTON_MARGIN + (BUTTON_HEIGHT + BUTTON_MARGIN) * 5, BUTTON_WIDTH, BUTTON_HEIGHT, hwnd, (HMENU)AMOUNT_TO_GENERATE, NULL, NULL);
-		CreateWindow("EDIT", 0, WS_BORDER | WS_CHILD | WS_VISIBLE | ES_AUTOVSCROLL | ES_MULTILINE | EM_SETREADONLY, BUTTON_MARGIN, BUTTON_MARGIN + (BUTTON_HEIGHT + BUTTON_MARGIN) * 6, BUTTON_WIDTH, 440, hwnd, (HMENU)STATS_DISPLAY, NULL, NULL);
+		CreateWindow("BUTTON", "Save to file", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, RIGHT_BUTTON_X_POS, BUTTON_MARGIN, SHORT_BUTTON_WIDTH, BUTTON_HEIGHT, hwnd, (HMENU)SAVE_SORTED_BUTTON, NULL, NULL);
+
+		CreateWindow("BUTTON", "Randomize", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, LEFT_BUTTON_X_POS, BUTTON_MARGIN + (BUTTON_HEIGHT + BUTTON_MARGIN), SHORT_BUTTON_WIDTH, BUTTON_HEIGHT, hwnd, (HMENU)GENERATE_RANDOM_BUTTON, NULL, NULL);
+
+		CreateWindow("BUTTON", "Save random", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, RIGHT_BUTTON_X_POS, BUTTON_MARGIN + (BUTTON_HEIGHT + BUTTON_MARGIN), SHORT_BUTTON_WIDTH, BUTTON_HEIGHT, hwnd, (HMENU)SAVE_BUTTON, NULL, NULL);
+
+		CreateWindow("EDIT", 0, WS_BORDER | WS_CHILD | WS_VISIBLE | ES_AUTOVSCROLL | ES_MULTILINE | ES_NUMBER, LEFT_BUTTON_X_POS, BUTTON_MARGIN + (BUTTON_HEIGHT + BUTTON_MARGIN) * 2.5, BUTTON_WIDTH, GENERATOR_HEIGHT, hwnd, (HMENU)AMOUNT_TO_GENERATE, NULL, NULL);
+		SendMessage(GetDlgItem(hwnd, AMOUNT_TO_GENERATE), EM_SETLIMITTEXT, 9, 0);
+
+		CreateWindow("BUTTON", "Quick sort", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, LEFT_BUTTON_X_POS, BUTTON_MARGIN + (BUTTON_HEIGHT + BUTTON_MARGIN) * 3.5, SHORT_BUTTON_WIDTH, BUTTON_HEIGHT, hwnd, (HMENU)QUICKSORT_BUTTON, NULL, NULL);
+
+		CreateWindow("BUTTON", "Bubble Sort", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, RIGHT_BUTTON_X_POS, BUTTON_MARGIN + (BUTTON_HEIGHT + BUTTON_MARGIN) * 3.5, SHORT_BUTTON_WIDTH, BUTTON_HEIGHT, hwnd, (HMENU)BUBBLE_SORT_BUTTON, NULL, NULL);
+
+		CreateWindow("BUTTON", "Insertion Sort", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, LEFT_BUTTON_X_POS, BUTTON_MARGIN + (BUTTON_HEIGHT + BUTTON_MARGIN) * 4.5, SHORT_BUTTON_WIDTH, BUTTON_HEIGHT, hwnd, (HMENU)INSERTION_SORT_BUTTON, NULL, NULL);
+
+		CreateWindow("BUTTON", "Selection Sort", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, RIGHT_BUTTON_X_POS, BUTTON_MARGIN + (BUTTON_HEIGHT + BUTTON_MARGIN) * 4.5, SHORT_BUTTON_WIDTH, BUTTON_HEIGHT, hwnd, (HMENU)SELECTION_SORT_BUTTON, NULL, NULL);
+
+		CreateWindow("BUTTON", "Merge Sort", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, LEFT_BUTTON_X_POS, BUTTON_MARGIN + (BUTTON_HEIGHT + BUTTON_MARGIN) * 5.5, SHORT_BUTTON_WIDTH, BUTTON_HEIGHT, hwnd, (HMENU)MERGE_SORT_BUTTON, NULL, NULL);
+
+		CreateWindow("BUTTON", "Heap Sort", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, RIGHT_BUTTON_X_POS, BUTTON_MARGIN + (BUTTON_HEIGHT + BUTTON_MARGIN) * 5.5, SHORT_BUTTON_WIDTH, BUTTON_HEIGHT, hwnd, (HMENU)HEAP_SORT_BUTTON, NULL, NULL);
+
+		CreateWindow("BUTTON", "Comb Sort", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, LEFT_BUTTON_X_POS, BUTTON_MARGIN + (BUTTON_HEIGHT + BUTTON_MARGIN) * 6.5, SHORT_BUTTON_WIDTH, BUTTON_HEIGHT, hwnd, (HMENU)COMB_SORT_BUTTON, NULL, NULL);
+
+		CreateWindow("BUTTON", "Shell Sort", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, RIGHT_BUTTON_X_POS, BUTTON_MARGIN + (BUTTON_HEIGHT + BUTTON_MARGIN) * 6.5, SHORT_BUTTON_WIDTH, BUTTON_HEIGHT, hwnd, (HMENU)SHELL_SORT_BUTTON, NULL, NULL);
+
+		CreateWindow("BUTTON", "Cycle Sort", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, LEFT_BUTTON_X_POS, BUTTON_MARGIN + (BUTTON_HEIGHT + BUTTON_MARGIN) * 7.5, SHORT_BUTTON_WIDTH, BUTTON_HEIGHT, hwnd, (HMENU)CYCLE_SORT_BUTTON, NULL, NULL);
+
+		CreateWindow("BUTTON", "Gnome Sort", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, RIGHT_BUTTON_X_POS, BUTTON_MARGIN + (BUTTON_HEIGHT + BUTTON_MARGIN) * 7.5, SHORT_BUTTON_WIDTH, BUTTON_HEIGHT, hwnd, (HMENU)GNOME_SORT_BUTTON, NULL, NULL);
+
+		CreateWindow("BUTTON", "FASTEST SORT", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, LEFT_BUTTON_X_POS, BUTTON_MARGIN + (BUTTON_HEIGHT + BUTTON_MARGIN) * 8.5, BUTTON_WIDTH, BUTTON_HEIGHT, hwnd, (HMENU)GNOME_SORT_BUTTON, NULL, NULL);
+
+		CreateWindow("EDIT", 0, WS_BORDER | WS_CHILD | WS_VISIBLE | ES_AUTOVSCROLL | ES_MULTILINE | EM_SETREADONLY, BUTTON_MARGIN, (BUTTON_HEIGHT + BUTTON_MARGIN) * 9.5 + GENERATOR_HEIGHT, BUTTON_WIDTH, 364, hwnd, (HMENU)STATS_DISPLAY, NULL, NULL);
 
 		WNDCLASSEX wc;
 		wc.cbSize = sizeof(WNDCLASSEX);
@@ -197,12 +184,14 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 		wc.hInstance = instance;
 		wc.hIcon = LoadIcon(NULL, IDI_APPLICATION);
 		wc.hCursor = LoadCursor(NULL, IDC_ARROW);
-		wc.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
+		wc.hbrBackground = (HBRUSH)GetStockObject(BLACK_BRUSH);
 		wc.lpszMenuName = "test";
 		wc.lpszClassName = "window2";
 		RegisterClassEx(&wc);
 
 		w2 = CreateWindowEx(WS_EX_STATICEDGE, "window2", (LPCSTR)NULL, WS_CHILD | WS_BORDER | SW_SHOW | WS_VISIBLE | WS_EX_COMPOSITED, BUTTON_MARGIN * 2 + BUTTON_WIDTH, BUTTON_MARGIN, VISUALIZATION_WIDTH, VISUALIZATION_HEIGHT, hwnd, (HMENU)VISUALIZATION, VisualizationInstance, NULL);
+		ShowWindow(w2, SW_SHOW);
+		UpdateWindow(w2);
 
 	case WM_COMMAND:
 
@@ -248,7 +237,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 		}
 		case GENERATE_RANDOM_BUTTON:
 		{
-			std::vector<long long int> random;
+			std::vector<unsigned int> random;
 			for (int i = 0; i < amountToGenerate; i++)
 			{
 				random.push_back(rand() % 10000);
@@ -284,21 +273,31 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 		case QUICKSORT_BUTTON:
 		{
+			if (fromFile.size() < 1)
+			{
+				MessageBox(hwnd, "No data to sort", "Error", MB_OK);
+				break;
+			}
+
+			steps.clear();
 
 			toBeSorted = fromFile;
 			visualizationArray = toBeSorted;
-			auto start = std::chrono::steady_clock::now();
+			/* 		auto start = std::chrono::steady_clock::now();
+					Sorts::quicksort(toBeSorted);
+
+					auto finish = std::chrono::steady_clock::now();
+
+					std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(finish - start).count() << "ms" << std::endl; */
+			Sorts::sort(toBeSorted, 100, &Sorts::quicksort);
+			steps.clear();
 			Sorts::quicksort(toBeSorted);
-
-			auto finish = std::chrono::steady_clock::now();
-
-			std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(finish - start).count() << "ms" << std::endl;
 
 			InvalidateRect(hwnd, NULL, TRUE);
 			shouldVisualize = true;
 			std::cout << "pre-visualization" << std::endl;
-			kek = std::async(visualize);
-
+			/* kek = std::async(visualize); */
+			InvalidateRect(w2, NULL, TRUE);
 			break;
 		}
 		}
@@ -308,9 +307,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 	case WM_PAINT:
 		hdc = BeginPaint(hwnd, &ps);
 
-		TextOut(hdc, 100, 150, vectorToString(fromFile).c_str(), vectorToString(fromFile).length());
-
-		TextOut(hdc, 100, 350, vectorToString(toBeSorted).c_str(), vectorToString(toBeSorted).length());
+		TextOut(hdc, BUTTON_MARGIN, BUTTON_MARGIN + 2 * (BUTTON_HEIGHT + BUTTON_MARGIN), "Amount to generate:", 19);
+		TextOut(hdc, BUTTON_MARGIN, (BUTTON_HEIGHT + BUTTON_MARGIN) * 9 + GENERATOR_HEIGHT, "Statistics:", 11);
 
 		EndPaint(hwnd, &ps);
 		break;
@@ -327,9 +325,88 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 	return 0;
 }
 
+/* child messages */
+LRESULT CALLBACK Proc2(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+
+	PAINTSTRUCT ps;
+	HDC hdc{GetDC(hwnd)};
+	HPEN whitePen = CreatePen(PS_SOLID, 1, RGB(255, 255, 255));
+	HPEN blackPen = CreatePen(PS_SOLID, 1, RGB(0, 0, 0));
+	HPEN redPen = CreatePen(PS_SOLID, 1, RGB(255, 0, 0));
+
+	RECT fullPaint = {0, 0, VISUALIZATION_WIDTH, VISUALIZATION_HEIGHT};
+	HBRUSH solidBrush = CreateSolidBrush(RGB(0, 0, 0));
+
+	switch (msg)
+	{
+	case WM_CREATE:
+		printf("-------\n");
+		return 0;
+
+	case WM_PAINT:
+		hdc = BeginPaint(hwnd, &ps);
+		if (!shouldVisualize)
+		{
+			FillRect(hdc, &fullPaint, solidBrush);
+		}
+
+		if (shouldVisualize)
+		{
+			std::cout << "VISUALIZING..." << std::endl;
+			const double WIDTH_RATIO = (double)VISUALIZATION_WIDTH / visualizationArray.size();
+			const double HEIGHT_RATIO = (double)VISUALIZATION_HEIGHT / *std::max_element(visualizationArray.begin(), visualizationArray.end());
+
+			SelectObject(hdc, whitePen);
+
+			FillRect(hdc, &fullPaint, solidBrush);
+
+			for (int i = 0; i < visualizationArray.size(); i++)
+			{
+
+				Rectangle(hdc, i * WIDTH_RATIO, VISUALIZATION_HEIGHT - visualizationArray[i] * HEIGHT_RATIO, (i + 1) * WIDTH_RATIO, VISUALIZATION_HEIGHT);
+			}
+
+			for (int i = 0; i < steps.size(); i++)
+			{
+
+				unsigned int temp = visualizationArray[steps[i].i];
+				visualizationArray[steps[i].i] = visualizationArray[steps[i].j];
+				visualizationArray[steps[i].j] = temp;
+
+				RECT recti = {steps[i].i * WIDTH_RATIO, 0, (steps[i].i + 1) * WIDTH_RATIO, VISUALIZATION_HEIGHT};
+				RECT rectj = {steps[i].j * WIDTH_RATIO, 0, (steps[i].j + 1) * WIDTH_RATIO, VISUALIZATION_HEIGHT};
+				SelectObject(hdc, blackPen);
+				FillRect(hdc, &recti, solidBrush);
+				FillRect(hdc, &rectj, solidBrush);
+
+				SelectObject(hdc, redPen);
+				Rectangle(hdc, steps[i].i * WIDTH_RATIO, VISUALIZATION_HEIGHT - visualizationArray[steps[i].i] * HEIGHT_RATIO, (steps[i].i + 1) * WIDTH_RATIO, VISUALIZATION_HEIGHT);
+				Rectangle(hdc, steps[i].j * WIDTH_RATIO, VISUALIZATION_HEIGHT - visualizationArray[steps[i].j] * HEIGHT_RATIO, (steps[i].j + 1) * WIDTH_RATIO, VISUALIZATION_HEIGHT);
+
+				/* std::this_thread::sleep_for(std::chrono::milliseconds(TIME_BETWEEN_STEPS)); */
+				SelectObject(hdc, whitePen);
+				Rectangle(hdc, steps[i].i * WIDTH_RATIO, VISUALIZATION_HEIGHT - visualizationArray[steps[i].i] * HEIGHT_RATIO, (steps[i].i + 1) * WIDTH_RATIO, VISUALIZATION_HEIGHT);
+				Rectangle(hdc, steps[i].j * WIDTH_RATIO, VISUALIZATION_HEIGHT - visualizationArray[steps[i].j] * HEIGHT_RATIO, (steps[i].j + 1) * WIDTH_RATIO, VISUALIZATION_HEIGHT);
+			}
+
+			shouldVisualize = false;
+		}
+
+		EndPaint(hwnd, &ps);
+
+		break;
+	case WM_ERASEBKGND:
+		return 1;
+	default:
+		return DefWindowProc(hwnd, msg, wParam, lParam);
+	}
+	return 0;
+}
+
 int main()
 {
 	WinMain(instance, NULL, 0, SW_SHOW);
 }
 
-/* ADD SORTING, DISPLAYING BEFORE SORT, AFTER SORT, TIME IT TOOK, NUMBER OF ITERATIONS, NUMBER OF CHANGES AND CREATE VISUALIZATION */
+/*  DISPLAYING BEFORE SORT, AFTER SORT, TIME IT TOOK, NUMBER OF ITERATIONS, NUMBER OF CHANGES */
