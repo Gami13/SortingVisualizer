@@ -1,3 +1,4 @@
+// ONLY COMPILES WITH -O1 or less
 // compile with: $ g++ -o main.exe main.cpp -lgdi32 -lole32 -loleaut32 -luuid
 // optimized: $ g++ -o main.exe main.cpp -lgdi32 -lole32 -loleaut32 -luuid -Ofast -march=native -flto
 
@@ -81,6 +82,84 @@ HINSTANCE instance;
 HINSTANCE VisualizationInstance;
 HWND w2;
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
+/* child messages */
+LRESULT CALLBACK Proc2(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+
+	PAINTSTRUCT ps;
+	HDC hdc{GetDC(hwnd)};
+	HPEN whitePen = CreatePen(PS_SOLID, 1, RGB(255, 255, 255));
+	HPEN blackPen = CreatePen(PS_SOLID, 1, RGB(0, 0, 0));
+	HPEN redPen = CreatePen(PS_SOLID, 1, RGB(255, 0, 0));
+
+	RECT fullPaint = {0, 0, VISUALIZATION_WIDTH, VISUALIZATION_HEIGHT};
+	HBRUSH solidBrush = CreateSolidBrush(RGB(0, 0, 0));
+
+	switch (msg)
+	{
+	case WM_CREATE:
+		printf("-------\n");
+		return 0;
+
+	case WM_PAINT:
+		hdc = BeginPaint(hwnd, &ps);
+		if (!shouldVisualize)
+		{
+			FillRect(hdc, &fullPaint, solidBrush);
+		}
+
+		if (shouldVisualize)
+		{
+			std::cout << "VISUALIZING..." << std::endl;
+			const double WIDTH_RATIO = (double)VISUALIZATION_WIDTH / visualizationArray.size();
+			const double HEIGHT_RATIO = (double)VISUALIZATION_HEIGHT / *std::max_element(visualizationArray.begin(), visualizationArray.end());
+
+			SelectObject(hdc, whitePen);
+
+			FillRect(hdc, &fullPaint, solidBrush);
+
+			for (int i = 0; i < visualizationArray.size(); i++)
+			{
+
+				Rectangle(hdc, i * WIDTH_RATIO, VISUALIZATION_HEIGHT - visualizationArray[i] * HEIGHT_RATIO, (i + 1) * WIDTH_RATIO, VISUALIZATION_HEIGHT);
+			}
+
+			for (int i = 0; i < steps.size(); i++)
+			{
+
+				unsigned int temp = visualizationArray[steps[i].i];
+				visualizationArray[steps[i].i] = visualizationArray[steps[i].j];
+				visualizationArray[steps[i].j] = temp;
+
+				RECT recti = {steps[i].i * WIDTH_RATIO, 0, (steps[i].i + 1) * WIDTH_RATIO, VISUALIZATION_HEIGHT};
+				RECT rectj = {steps[i].j * WIDTH_RATIO, 0, (steps[i].j + 1) * WIDTH_RATIO, VISUALIZATION_HEIGHT};
+				SelectObject(hdc, blackPen);
+				FillRect(hdc, &recti, solidBrush);
+				FillRect(hdc, &rectj, solidBrush);
+
+				SelectObject(hdc, redPen);
+				Rectangle(hdc, steps[i].i * WIDTH_RATIO, VISUALIZATION_HEIGHT - visualizationArray[steps[i].i] * HEIGHT_RATIO, (steps[i].i + 1) * WIDTH_RATIO, VISUALIZATION_HEIGHT);
+				Rectangle(hdc, steps[i].j * WIDTH_RATIO, VISUALIZATION_HEIGHT - visualizationArray[steps[i].j] * HEIGHT_RATIO, (steps[i].j + 1) * WIDTH_RATIO, VISUALIZATION_HEIGHT);
+
+				/* std::this_thread::sleep_for(std::chrono::milliseconds(TIME_BETWEEN_STEPS)); */
+				SelectObject(hdc, whitePen);
+				Rectangle(hdc, steps[i].i * WIDTH_RATIO, VISUALIZATION_HEIGHT - visualizationArray[steps[i].i] * HEIGHT_RATIO, (steps[i].i + 1) * WIDTH_RATIO, VISUALIZATION_HEIGHT);
+				Rectangle(hdc, steps[i].j * WIDTH_RATIO, VISUALIZATION_HEIGHT - visualizationArray[steps[i].j] * HEIGHT_RATIO, (steps[i].j + 1) * WIDTH_RATIO, VISUALIZATION_HEIGHT);
+			}
+
+			shouldVisualize = false;
+		}
+
+		EndPaint(hwnd, &ps);
+
+		break;
+	case WM_ERASEBKGND:
+		return 1;
+	default:
+		return DefWindowProc(hwnd, msg, wParam, lParam);
+	}
+	return 0;
+}
 
 int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPSTR lpCmdLine, _In_ int nCmdShow)
 {
@@ -322,85 +401,6 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 		break;
 	}
 
-	return 0;
-}
-
-/* child messages */
-LRESULT CALLBACK Proc2(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
-{
-
-	PAINTSTRUCT ps;
-	HDC hdc{GetDC(hwnd)};
-	HPEN whitePen = CreatePen(PS_SOLID, 1, RGB(255, 255, 255));
-	HPEN blackPen = CreatePen(PS_SOLID, 1, RGB(0, 0, 0));
-	HPEN redPen = CreatePen(PS_SOLID, 1, RGB(255, 0, 0));
-
-	RECT fullPaint = {0, 0, VISUALIZATION_WIDTH, VISUALIZATION_HEIGHT};
-	HBRUSH solidBrush = CreateSolidBrush(RGB(0, 0, 0));
-
-	switch (msg)
-	{
-	case WM_CREATE:
-		printf("-------\n");
-		return 0;
-
-	case WM_PAINT:
-		hdc = BeginPaint(hwnd, &ps);
-		if (!shouldVisualize)
-		{
-			FillRect(hdc, &fullPaint, solidBrush);
-		}
-
-		if (shouldVisualize)
-		{
-			std::cout << "VISUALIZING..." << std::endl;
-			const double WIDTH_RATIO = (double)VISUALIZATION_WIDTH / visualizationArray.size();
-			const double HEIGHT_RATIO = (double)VISUALIZATION_HEIGHT / *std::max_element(visualizationArray.begin(), visualizationArray.end());
-
-			SelectObject(hdc, whitePen);
-
-			FillRect(hdc, &fullPaint, solidBrush);
-
-			for (int i = 0; i < visualizationArray.size(); i++)
-			{
-
-				Rectangle(hdc, i * WIDTH_RATIO, VISUALIZATION_HEIGHT - visualizationArray[i] * HEIGHT_RATIO, (i + 1) * WIDTH_RATIO, VISUALIZATION_HEIGHT);
-			}
-
-			for (int i = 0; i < steps.size(); i++)
-			{
-
-				unsigned int temp = visualizationArray[steps[i].i];
-				visualizationArray[steps[i].i] = visualizationArray[steps[i].j];
-				visualizationArray[steps[i].j] = temp;
-
-				RECT recti = {steps[i].i * WIDTH_RATIO, 0, (steps[i].i + 1) * WIDTH_RATIO, VISUALIZATION_HEIGHT};
-				RECT rectj = {steps[i].j * WIDTH_RATIO, 0, (steps[i].j + 1) * WIDTH_RATIO, VISUALIZATION_HEIGHT};
-				SelectObject(hdc, blackPen);
-				FillRect(hdc, &recti, solidBrush);
-				FillRect(hdc, &rectj, solidBrush);
-
-				SelectObject(hdc, redPen);
-				Rectangle(hdc, steps[i].i * WIDTH_RATIO, VISUALIZATION_HEIGHT - visualizationArray[steps[i].i] * HEIGHT_RATIO, (steps[i].i + 1) * WIDTH_RATIO, VISUALIZATION_HEIGHT);
-				Rectangle(hdc, steps[i].j * WIDTH_RATIO, VISUALIZATION_HEIGHT - visualizationArray[steps[i].j] * HEIGHT_RATIO, (steps[i].j + 1) * WIDTH_RATIO, VISUALIZATION_HEIGHT);
-
-				/* std::this_thread::sleep_for(std::chrono::milliseconds(TIME_BETWEEN_STEPS)); */
-				SelectObject(hdc, whitePen);
-				Rectangle(hdc, steps[i].i * WIDTH_RATIO, VISUALIZATION_HEIGHT - visualizationArray[steps[i].i] * HEIGHT_RATIO, (steps[i].i + 1) * WIDTH_RATIO, VISUALIZATION_HEIGHT);
-				Rectangle(hdc, steps[i].j * WIDTH_RATIO, VISUALIZATION_HEIGHT - visualizationArray[steps[i].j] * HEIGHT_RATIO, (steps[i].j + 1) * WIDTH_RATIO, VISUALIZATION_HEIGHT);
-			}
-
-			shouldVisualize = false;
-		}
-
-		EndPaint(hwnd, &ps);
-
-		break;
-	case WM_ERASEBKGND:
-		return 1;
-	default:
-		return DefWindowProc(hwnd, msg, wParam, lParam);
-	}
 	return 0;
 }
 
