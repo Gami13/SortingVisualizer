@@ -1,5 +1,5 @@
 // ONLY COMPILES WITH -O1 or less
-// compile with: $ g++ -o main.exe main.cpp -lgdi32 -lole32 -loleaut32 -luuid
+// compile with: $ g++ -o main.exe main.cpp -lgdi32 -lole32 -loleaut32 -luuid -std=c++20
 // optimized: $ g++ -o main.exe main.cpp -lgdi32 -lole32 -loleaut32 -luuid -Ofast -march=native -flto
 
 #include <windows.h>
@@ -13,6 +13,7 @@
 #include <fstream>
 #include <thread>
 #include <algorithm>
+#include <numeric>
 struct Step
 {
 	int i;
@@ -20,6 +21,12 @@ struct Step
 };
 
 std::vector<Step> steps;
+float fastestSort = 0;
+float slowestSort = 0;
+float averageSort = 0;
+int amountOfIterations = 0;
+int amountOfComparisons = 0;
+
 #include "sorts.hpp"
 #include "files.hpp"
 
@@ -42,8 +49,9 @@ std::vector<Step> steps;
 #define SHELL_SORT_BUTTON 17
 #define CYCLE_SORT_BUTTON 18
 #define GNOME_SORT_BUTTON 19
+#define PASSES_AMOUNT 20
+#define STEPS_DELAY 21
 
-#define TIME_BETWEEN_STEPS 10
 #define BUTTON_HEIGHT 40
 #define BUTTON_WIDTH 200
 #define BUTTON_MARGIN 8
@@ -73,6 +81,8 @@ std::string filepath;
 bool shouldVisualize = false;
 
 int amountToGenerate = 0;
+int passesAmount = 1;
+int stepsDelay = 0;
 
 // The main window class name.
 static char WINDOW_NAME[] = _T("SortTest");
@@ -131,8 +141,8 @@ LRESULT CALLBACK Proc2(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 				visualizationArray[steps[i].i] = visualizationArray[steps[i].j];
 				visualizationArray[steps[i].j] = temp;
 
-				RECT recti = {steps[i].i * WIDTH_RATIO, 0, (steps[i].i + 1) * WIDTH_RATIO, VISUALIZATION_HEIGHT};
-				RECT rectj = {steps[i].j * WIDTH_RATIO, 0, (steps[i].j + 1) * WIDTH_RATIO, VISUALIZATION_HEIGHT};
+				RECT recti = {(int)(steps[i].i * WIDTH_RATIO), 0, (int)((steps[i].i + 1) * WIDTH_RATIO), VISUALIZATION_HEIGHT};
+				RECT rectj = {(int)(steps[i].j * WIDTH_RATIO), 0, (int)((steps[i].j + 1) * WIDTH_RATIO), VISUALIZATION_HEIGHT};
 				SelectObject(hdc, blackPen);
 				FillRect(hdc, &recti, solidBrush);
 				FillRect(hdc, &rectj, solidBrush);
@@ -141,11 +151,12 @@ LRESULT CALLBACK Proc2(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 				Rectangle(hdc, steps[i].i * WIDTH_RATIO, VISUALIZATION_HEIGHT - visualizationArray[steps[i].i] * HEIGHT_RATIO, (steps[i].i + 1) * WIDTH_RATIO, VISUALIZATION_HEIGHT);
 				Rectangle(hdc, steps[i].j * WIDTH_RATIO, VISUALIZATION_HEIGHT - visualizationArray[steps[i].j] * HEIGHT_RATIO, (steps[i].j + 1) * WIDTH_RATIO, VISUALIZATION_HEIGHT);
 
-				/* std::this_thread::sleep_for(std::chrono::milliseconds(TIME_BETWEEN_STEPS)); */
+				std::this_thread::sleep_for(std::chrono::milliseconds(stepsDelay));
 				SelectObject(hdc, whitePen);
 				Rectangle(hdc, steps[i].i * WIDTH_RATIO, VISUALIZATION_HEIGHT - visualizationArray[steps[i].i] * HEIGHT_RATIO, (steps[i].i + 1) * WIDTH_RATIO, VISUALIZATION_HEIGHT);
 				Rectangle(hdc, steps[i].j * WIDTH_RATIO, VISUALIZATION_HEIGHT - visualizationArray[steps[i].j] * HEIGHT_RATIO, (steps[i].j + 1) * WIDTH_RATIO, VISUALIZATION_HEIGHT);
 			}
+			steps.clear();
 
 			shouldVisualize = false;
 		}
@@ -250,9 +261,13 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 		CreateWindow("BUTTON", "Gnome Sort", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, RIGHT_BUTTON_X_POS, BUTTON_MARGIN + (BUTTON_HEIGHT + BUTTON_MARGIN) * 7.5, SHORT_BUTTON_WIDTH, BUTTON_HEIGHT, hwnd, (HMENU)GNOME_SORT_BUTTON, NULL, NULL);
 
-		CreateWindow("BUTTON", "FASTEST SORT", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, LEFT_BUTTON_X_POS, BUTTON_MARGIN + (BUTTON_HEIGHT + BUTTON_MARGIN) * 8.5, BUTTON_WIDTH, BUTTON_HEIGHT, hwnd, (HMENU)GNOME_SORT_BUTTON, NULL, NULL);
+		CreateWindow("EDIT", 0, WS_BORDER | WS_CHILD | WS_VISIBLE | ES_AUTOVSCROLL | ES_MULTILINE | ES_NUMBER, LEFT_BUTTON_X_POS, (GENERATOR_HEIGHT * 0.33) + (BUTTON_HEIGHT - GENERATOR_HEIGHT) + BUTTON_MARGIN + (BUTTON_HEIGHT + BUTTON_MARGIN) * 8.5, SHORT_BUTTON_WIDTH, GENERATOR_HEIGHT * 0.7, hwnd, (HMENU)PASSES_AMOUNT, NULL, NULL);
+		SendMessage(GetDlgItem(hwnd, PASSES_AMOUNT), EM_SETLIMITTEXT, 5, 0);
+		CreateWindow("EDIT", 0, WS_BORDER | WS_CHILD | WS_VISIBLE | ES_AUTOVSCROLL | ES_MULTILINE | ES_NUMBER, RIGHT_BUTTON_X_POS, (GENERATOR_HEIGHT * 0.33) + (BUTTON_HEIGHT - GENERATOR_HEIGHT) + BUTTON_MARGIN + (BUTTON_HEIGHT + BUTTON_MARGIN) * 8.5, SHORT_BUTTON_WIDTH, GENERATOR_HEIGHT * 0.7, hwnd, (HMENU)STEPS_DELAY, NULL, NULL);
+		SendMessage(GetDlgItem(hwnd, STEPS_DELAY), EM_SETLIMITTEXT, 3, 0);
 
-		CreateWindow("EDIT", 0, WS_BORDER | WS_CHILD | WS_VISIBLE | ES_AUTOVSCROLL | ES_MULTILINE | EM_SETREADONLY, BUTTON_MARGIN, (BUTTON_HEIGHT + BUTTON_MARGIN) * 9.5 + GENERATOR_HEIGHT, BUTTON_WIDTH, 364, hwnd, (HMENU)STATS_DISPLAY, NULL, NULL);
+		CreateWindow("EDIT", 0, WS_BORDER | WS_CHILD | WS_VISIBLE | ES_AUTOVSCROLL | ES_MULTILINE, BUTTON_MARGIN, (BUTTON_HEIGHT + BUTTON_MARGIN) * 9.5 + GENERATOR_HEIGHT, BUTTON_WIDTH, 364, hwnd, (HMENU)STATS_DISPLAY, NULL, NULL);
+		SendMessage(GetDlgItem(hwnd, STATS_DISPLAY), EM_SETREADONLY, TRUE, 0);
 
 		WNDCLASSEX wc;
 		wc.cbSize = sizeof(WNDCLASSEX);
@@ -294,6 +309,43 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 				}
 
 				delete[] buffer;
+				break;
+			}
+			if (LOWORD(wParam) == PASSES_AMOUNT)
+			{
+				int len = GetWindowTextLength((HWND)lParam);
+				char *buffer = new char[len + 1];
+				GetWindowText((HWND)lParam, buffer, len + 1);
+				std::string s = buffer;
+				if (s != "")
+				{
+					passesAmount = std::stoi(s);
+				}
+				else
+				{
+					passesAmount = 1;
+				}
+
+				delete[] buffer;
+				break;
+			}
+			if (LOWORD(wParam) == STEPS_DELAY)
+			{
+				int len = GetWindowTextLength((HWND)lParam);
+				char *buffer = new char[len + 1];
+				GetWindowText((HWND)lParam, buffer, len + 1);
+				std::string s = buffer;
+				if (s != "")
+				{
+					stepsDelay = std::stoi(s);
+				}
+				else
+				{
+					stepsDelay = 0;
+				}
+
+				delete[] buffer;
+				break;
 			}
 			break;
 		}
@@ -358,8 +410,6 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 				break;
 			}
 
-			steps.clear();
-
 			toBeSorted = fromFile;
 			visualizationArray = toBeSorted;
 			/* 		auto start = std::chrono::steady_clock::now();
@@ -368,15 +418,23 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 					auto finish = std::chrono::steady_clock::now();
 
 					std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(finish - start).count() << "ms" << std::endl; */
-			Sorts::sort(toBeSorted, 100, &Sorts::quicksort);
-			steps.clear();
-			Sorts::quicksort(toBeSorted);
+			Sorts::sort(toBeSorted, passesAmount, &Sorts::quicksort);
+
+			std::string wsBookmark = "Sorting Algorithm: Quick Sort\r\nAmount of objects: " + std::to_string(toBeSorted.size()) + "\r\nLowest time: " + std::to_string(fastestSort) + "\r\nHighest time: " + std::to_string(slowestSort) + "\r\nAverage time: " + std::to_string(averageSort) + "\r\nComparisons: " + std::to_string(amountOfComparisons) + "\r\nSwaps: " + std::to_string(steps.size()) + "\r\nIterations: " + std::to_string(amountOfIterations) + "\r\n";
+
+			UINT size = (wsBookmark.size() + 1) * sizeof(wchar_t);
+
+			wchar_t *ptr = (wchar_t *)CoTaskMemAlloc(size);
+			CopyMemory(ptr, wsBookmark.c_str(), size);
+
+			SendMessage(GetDlgItem(hwnd, STATS_DISPLAY), WM_SETTEXT, 0, (LPARAM)ptr);
 
 			InvalidateRect(hwnd, NULL, TRUE);
 			shouldVisualize = true;
 			std::cout << "pre-visualization" << std::endl;
 			/* kek = std::async(visualize); */
 			InvalidateRect(w2, NULL, TRUE);
+
 			break;
 		}
 		}
@@ -388,6 +446,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 		TextOut(hdc, BUTTON_MARGIN, BUTTON_MARGIN + 2 * (BUTTON_HEIGHT + BUTTON_MARGIN), "Amount to generate:", 19);
 		TextOut(hdc, BUTTON_MARGIN, (BUTTON_HEIGHT + BUTTON_MARGIN) * 9 + GENERATOR_HEIGHT, "Statistics:", 11);
+		TextOut(hdc, BUTTON_MARGIN, BUTTON_MARGIN + (BUTTON_HEIGHT + BUTTON_MARGIN) * 8.5, "Passes:", 7);
+		TextOut(hdc, BUTTON_MARGIN + SHORT_BUTTON_WIDTH + BUTTON_MARGIN, BUTTON_MARGIN + (BUTTON_HEIGHT + BUTTON_MARGIN) * 8.5, "Steps:", 6);
 
 		EndPaint(hwnd, &ps);
 		break;
