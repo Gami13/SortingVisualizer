@@ -43,7 +43,7 @@ int amountOfComparisons = 0;
 #define BUBBLE_SORT_BUTTON 11
 #define INSERTION_SORT_BUTTON 12
 #define SELECTION_SORT_BUTTON 13
-#define MERGE_SORT_BUTTON 14
+#define COCKTAIL_SORT_BUTTON 14
 #define HEAP_SORT_BUTTON 15
 #define COMB_SORT_BUTTON 16
 #define SHELL_SORT_BUTTON 17
@@ -104,6 +104,7 @@ LRESULT CALLBACK Proc2(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
 	RECT fullPaint = {0, 0, VISUALIZATION_WIDTH, VISUALIZATION_HEIGHT};
 	HBRUSH solidBrush = CreateSolidBrush(RGB(0, 0, 0));
+	HBRUSH greenBrush = CreateSolidBrush(RGB(0, 255, 0));
 
 	switch (msg)
 	{
@@ -137,9 +138,7 @@ LRESULT CALLBACK Proc2(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			for (int i = 0; i < steps.size(); i++)
 			{
 
-				unsigned int temp = visualizationArray[steps[i].i];
-				visualizationArray[steps[i].i] = visualizationArray[steps[i].j];
-				visualizationArray[steps[i].j] = temp;
+				std::swap(visualizationArray[steps[i].i], visualizationArray[steps[i].j]);
 
 				RECT recti = {(int)(steps[i].i * WIDTH_RATIO), 0, (int)((steps[i].i + 1) * WIDTH_RATIO), VISUALIZATION_HEIGHT};
 				RECT rectj = {(int)(steps[i].j * WIDTH_RATIO), 0, (int)((steps[i].j + 1) * WIDTH_RATIO), VISUALIZATION_HEIGHT};
@@ -147,15 +146,23 @@ LRESULT CALLBACK Proc2(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 				FillRect(hdc, &recti, solidBrush);
 				FillRect(hdc, &rectj, solidBrush);
 
+				double si1 = steps[i].i * WIDTH_RATIO;
+				double si2 = VISUALIZATION_HEIGHT - visualizationArray[steps[i].i] * HEIGHT_RATIO;
+				double si3 = (steps[i].i + 1) * WIDTH_RATIO;
+				double sj1 = steps[i].j * WIDTH_RATIO;
+				double sj2 = VISUALIZATION_HEIGHT - visualizationArray[steps[i].j] * HEIGHT_RATIO;
+				double sj3 = (steps[i].j + 1) * WIDTH_RATIO;
+
 				SelectObject(hdc, redPen);
-				Rectangle(hdc, steps[i].i * WIDTH_RATIO, VISUALIZATION_HEIGHT - visualizationArray[steps[i].i] * HEIGHT_RATIO, (steps[i].i + 1) * WIDTH_RATIO, VISUALIZATION_HEIGHT);
-				Rectangle(hdc, steps[i].j * WIDTH_RATIO, VISUALIZATION_HEIGHT - visualizationArray[steps[i].j] * HEIGHT_RATIO, (steps[i].j + 1) * WIDTH_RATIO, VISUALIZATION_HEIGHT);
+				Rectangle(hdc, si1, si2, si3, VISUALIZATION_HEIGHT);
+				Rectangle(hdc, sj1, sj2, sj3, VISUALIZATION_HEIGHT);
 
 				std::this_thread::sleep_for(std::chrono::milliseconds(stepsDelay));
 				SelectObject(hdc, whitePen);
-				Rectangle(hdc, steps[i].i * WIDTH_RATIO, VISUALIZATION_HEIGHT - visualizationArray[steps[i].i] * HEIGHT_RATIO, (steps[i].i + 1) * WIDTH_RATIO, VISUALIZATION_HEIGHT);
-				Rectangle(hdc, steps[i].j * WIDTH_RATIO, VISUALIZATION_HEIGHT - visualizationArray[steps[i].j] * HEIGHT_RATIO, (steps[i].j + 1) * WIDTH_RATIO, VISUALIZATION_HEIGHT);
+				Rectangle(hdc, si1, si2, si3, VISUALIZATION_HEIGHT);
+				Rectangle(hdc, sj1, sj2, sj3, VISUALIZATION_HEIGHT);
 			}
+
 			steps.clear();
 
 			shouldVisualize = false;
@@ -249,7 +256,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 		CreateWindow("BUTTON", "Selection Sort", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, RIGHT_BUTTON_X_POS, BUTTON_MARGIN + (BUTTON_HEIGHT + BUTTON_MARGIN) * 4.5, SHORT_BUTTON_WIDTH, BUTTON_HEIGHT, hwnd, (HMENU)SELECTION_SORT_BUTTON, NULL, NULL);
 
-		CreateWindow("BUTTON", "Merge Sort", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, LEFT_BUTTON_X_POS, BUTTON_MARGIN + (BUTTON_HEIGHT + BUTTON_MARGIN) * 5.5, SHORT_BUTTON_WIDTH, BUTTON_HEIGHT, hwnd, (HMENU)MERGE_SORT_BUTTON, NULL, NULL);
+		CreateWindow("BUTTON", "Cocktail Sort", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, LEFT_BUTTON_X_POS, BUTTON_MARGIN + (BUTTON_HEIGHT + BUTTON_MARGIN) * 5.5, SHORT_BUTTON_WIDTH, BUTTON_HEIGHT, hwnd, (HMENU)COCKTAIL_SORT_BUTTON, NULL, NULL);
 
 		CreateWindow("BUTTON", "Heap Sort", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, RIGHT_BUTTON_X_POS, BUTTON_MARGIN + (BUTTON_HEIGHT + BUTTON_MARGIN) * 5.5, SHORT_BUTTON_WIDTH, BUTTON_HEIGHT, hwnd, (HMENU)HEAP_SORT_BUTTON, NULL, NULL);
 
@@ -269,6 +276,22 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 		CreateWindow("EDIT", 0, WS_BORDER | WS_CHILD | WS_VISIBLE | ES_AUTOVSCROLL | ES_MULTILINE, BUTTON_MARGIN, (BUTTON_HEIGHT + BUTTON_MARGIN) * 9.5 + GENERATOR_HEIGHT, BUTTON_WIDTH, 364, hwnd, (HMENU)STATS_DISPLAY, NULL, NULL);
 		SendMessage(GetDlgItem(hwnd, STATS_DISPLAY), EM_SETREADONLY, TRUE, 0);
 
+		CreateWindow("EDIT", 0, WS_BORDER | WS_CHILD | WS_VISIBLE | ES_AUTOVSCROLL | ES_MULTILINE,
+					 BUTTON_MARGIN + BUTTON_WIDTH + BUTTON_MARGIN,
+					 VISUALIZATION_HEIGHT + BUTTON_MARGIN * 4,
+					 (VISUALIZATION_WIDTH / 2) - BUTTON_MARGIN / 2,
+					 224,
+					 hwnd, (HMENU)UNSORTED_DISPLAY, NULL, NULL);
+		SendMessage(GetDlgItem(hwnd, UNSORTED_DISPLAY), EM_SETREADONLY, TRUE, 0);
+
+		CreateWindow("EDIT", 0, WS_BORDER | WS_CHILD | WS_VISIBLE | ES_AUTOVSCROLL | ES_MULTILINE,
+					 BUTTON_MARGIN + BUTTON_WIDTH + BUTTON_MARGIN + ((VISUALIZATION_WIDTH / 2) - BUTTON_MARGIN / 2) + BUTTON_MARGIN,
+					 VISUALIZATION_HEIGHT + BUTTON_MARGIN * 4,
+					 (VISUALIZATION_WIDTH / 2) - BUTTON_MARGIN / 2,
+					 224,
+					 hwnd, (HMENU)SORTED_DISPLAY, NULL, NULL);
+
+		SendMessage(GetDlgItem(hwnd, SORTED_DISPLAY), EM_SETREADONLY, TRUE, 0);
 		WNDCLASSEX wc;
 		wc.cbSize = sizeof(WNDCLASSEX);
 		wc.style = 0;
@@ -412,13 +435,10 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 			toBeSorted = fromFile;
 			visualizationArray = toBeSorted;
-			/* 		auto start = std::chrono::steady_clock::now();
-					Sorts::quicksort(toBeSorted);
 
-					auto finish = std::chrono::steady_clock::now();
-
-					std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(finish - start).count() << "ms" << std::endl; */
 			Sorts::sort(toBeSorted, passesAmount, &Sorts::quicksort);
+			steps.clear();
+			Sorts::quicksort(toBeSorted);
 
 			std::string wsBookmark = "Sorting Algorithm: Quick Sort\r\nAmount of objects: " + std::to_string(toBeSorted.size()) + "\r\nLowest time: " + std::to_string(fastestSort) + "\r\nHighest time: " + std::to_string(slowestSort) + "\r\nAverage time: " + std::to_string(averageSort) + "\r\nComparisons: " + std::to_string(amountOfComparisons) + "\r\nSwaps: " + std::to_string(steps.size()) + "\r\nIterations: " + std::to_string(amountOfIterations) + "\r\n";
 
@@ -431,15 +451,283 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 			InvalidateRect(hwnd, NULL, TRUE);
 			shouldVisualize = true;
-			std::cout << "pre-visualization" << std::endl;
-			/* kek = std::async(visualize); */
+
 			InvalidateRect(w2, NULL, TRUE);
 
 			break;
 		}
-		}
+		case BUBBLE_SORT_BUTTON:
+		{
+			if (fromFile.size() < 1)
+			{
+				MessageBox(hwnd, "No data to sort", "Error", MB_OK);
+				break;
+			}
 
+			toBeSorted = fromFile;
+			visualizationArray = toBeSorted;
+
+			Sorts::sort(toBeSorted, passesAmount, &Sorts::bubbleSort);
+			steps.clear();
+			Sorts::bubbleSort(toBeSorted);
+
+			std::string wsBookmark = "Sorting Algorithm: Bubble Sort\r\nAmount of objects: " + std::to_string(toBeSorted.size()) + "\r\nLowest time: " + std::to_string(fastestSort) + "\r\nHighest time: " + std::to_string(slowestSort) + "\r\nAverage time: " + std::to_string(averageSort) + "\r\nComparisons: " + std::to_string(amountOfComparisons) + "\r\nSwaps: " + std::to_string(steps.size()) + "\r\nIterations: " + std::to_string(amountOfIterations) + "\r\n";
+
+			UINT size = (wsBookmark.size() + 1) * sizeof(wchar_t);
+
+			wchar_t *ptr = (wchar_t *)CoTaskMemAlloc(size);
+			CopyMemory(ptr, wsBookmark.c_str(), size);
+
+			SendMessage(GetDlgItem(hwnd, STATS_DISPLAY), WM_SETTEXT, 0, (LPARAM)ptr);
+
+			InvalidateRect(hwnd, NULL, TRUE);
+			shouldVisualize = true;
+			InvalidateRect(w2, NULL, TRUE);
+
+			break;
+		}
+		case INSERTION_SORT_BUTTON:
+		{
+			if (fromFile.size() < 1)
+			{
+				MessageBox(hwnd, "No data to sort", "Error", MB_OK);
+				break;
+			}
+
+			toBeSorted = fromFile;
+			visualizationArray = toBeSorted;
+
+			Sorts::sort(toBeSorted, passesAmount, &Sorts::insertionSort);
+			steps.clear();
+			Sorts::insertionSort(toBeSorted);
+
+			std::string wsBookmark = "Sorting Algorithm: Insertion Sort\r\nAmount of objects: " + std::to_string(toBeSorted.size()) + "\r\nLowest time: " + std::to_string(fastestSort) + "\r\nHighest time: " + std::to_string(slowestSort) + "\r\nAverage time: " + std::to_string(averageSort) + "\r\nComparisons: " + std::to_string(amountOfComparisons) + "\r\nSwaps: " + std::to_string(steps.size()) + "\r\nIterations: " + std::to_string(amountOfIterations) + "\r\n";
+
+			UINT size = (wsBookmark.size() + 1) * sizeof(wchar_t);
+
+			wchar_t *ptr = (wchar_t *)CoTaskMemAlloc(size);
+			CopyMemory(ptr, wsBookmark.c_str(), size);
+
+			SendMessage(GetDlgItem(hwnd, STATS_DISPLAY), WM_SETTEXT, 0, (LPARAM)ptr);
+
+			InvalidateRect(hwnd, NULL, TRUE);
+			shouldVisualize = true;
+			InvalidateRect(w2, NULL, TRUE);
+
+			break;
+		}
+		case SELECTION_SORT_BUTTON:
+		{
+			if (fromFile.size() < 1)
+			{
+				MessageBox(hwnd, "No data to sort", "Error", MB_OK);
+				break;
+			}
+
+			toBeSorted = fromFile;
+			visualizationArray = toBeSorted;
+
+			Sorts::sort(toBeSorted, passesAmount, &Sorts::selectionSort);
+			steps.clear();
+			Sorts::selectionSort(toBeSorted);
+
+			std::string wsBookmark = "Sorting Algorithm: Selection Sort\r\nAmount of objects: " + std::to_string(toBeSorted.size()) + "\r\nLowest time: " + std::to_string(fastestSort) + "\r\nHighest time: " + std::to_string(slowestSort) + "\r\nAverage time: " + std::to_string(averageSort) + "\r\nComparisons: " + std::to_string(amountOfComparisons) + "\r\nSwaps: " + std::to_string(steps.size()) + "\r\nIterations: " + std::to_string(amountOfIterations) + "\r\n";
+
+			UINT size = (wsBookmark.size() + 1) * sizeof(wchar_t);
+
+			wchar_t *ptr = (wchar_t *)CoTaskMemAlloc(size);
+			CopyMemory(ptr, wsBookmark.c_str(), size);
+
+			SendMessage(GetDlgItem(hwnd, STATS_DISPLAY), WM_SETTEXT, 0, (LPARAM)ptr);
+
+			InvalidateRect(hwnd, NULL, TRUE);
+			shouldVisualize = true;
+			InvalidateRect(w2, NULL, TRUE);
+
+			break;
+		}
+		case COCKTAIL_SORT_BUTTON:
+		{
+			if (fromFile.size() < 1)
+			{
+				MessageBox(hwnd, "No data to sort", "Error", MB_OK);
+				break;
+			}
+
+			toBeSorted = fromFile;
+			visualizationArray = toBeSorted;
+
+			Sorts::sort(toBeSorted, passesAmount, &Sorts::cocktailSort);
+			steps.clear();
+			Sorts::cocktailSort(toBeSorted);
+
+			std::string wsBookmark = "Sorting Algorithm: Cocktail Sort\r\nAmount of objects: " + std::to_string(toBeSorted.size()) + "\r\nLowest time: " + std::to_string(fastestSort) + "\r\nHighest time: " + std::to_string(slowestSort) + "\r\nAverage time: " + std::to_string(averageSort) + "\r\nComparisons: " + std::to_string(amountOfComparisons) + "\r\nSwaps: " + std::to_string(steps.size()) + "\r\nIterations: " + std::to_string(amountOfIterations) + "\r\n";
+
+			UINT size = (wsBookmark.size() + 1) * sizeof(wchar_t);
+
+			wchar_t *ptr = (wchar_t *)CoTaskMemAlloc(size);
+			CopyMemory(ptr, wsBookmark.c_str(), size);
+
+			SendMessage(GetDlgItem(hwnd, STATS_DISPLAY), WM_SETTEXT, 0, (LPARAM)ptr);
+
+			InvalidateRect(hwnd, NULL, TRUE);
+			shouldVisualize = true;
+			InvalidateRect(w2, NULL, TRUE);
+
+			break;
+		}
+		case HEAP_SORT_BUTTON:
+		{
+			if (fromFile.size() < 1)
+			{
+				MessageBox(hwnd, "No data to sort", "Error", MB_OK);
+				break;
+			}
+
+			toBeSorted = fromFile;
+			visualizationArray = toBeSorted;
+
+			Sorts::sort(toBeSorted, passesAmount, &Sorts::heapSort);
+			steps.clear();
+			Sorts::heapSort(toBeSorted);
+
+			std::string wsBookmark = "Sorting Algorithm: Heap Sort\r\nAmount of objects: " + std::to_string(toBeSorted.size()) + "\r\nLowest time: " + std::to_string(fastestSort) + "\r\nHighest time: " + std::to_string(slowestSort) + "\r\nAverage time: " + std::to_string(averageSort) + "\r\nComparisons: " + std::to_string(amountOfComparisons) + "\r\nSwaps: " + std::to_string(steps.size()) + "\r\nIterations: " + std::to_string(amountOfIterations) + "\r\n";
+
+			UINT size = (wsBookmark.size() + 1) * sizeof(wchar_t);
+
+			wchar_t *ptr = (wchar_t *)CoTaskMemAlloc(size);
+			CopyMemory(ptr, wsBookmark.c_str(), size);
+
+			SendMessage(GetDlgItem(hwnd, STATS_DISPLAY), WM_SETTEXT, 0, (LPARAM)ptr);
+
+			InvalidateRect(hwnd, NULL, TRUE);
+			shouldVisualize = true;
+			InvalidateRect(w2, NULL, TRUE);
+
+			break;
+		}
+		case COMB_SORT_BUTTON:
+		{
+			if (fromFile.size() < 1)
+			{
+				MessageBox(hwnd, "No data to sort", "Error", MB_OK);
+				break;
+			}
+
+			toBeSorted = fromFile;
+			visualizationArray = toBeSorted;
+
+			Sorts::sort(toBeSorted, passesAmount, &Sorts::combSort);
+			steps.clear();
+			Sorts::combSort(toBeSorted);
+
+			std::string wsBookmark = "Sorting Algorithm: Comb Sort\r\nAmount of objects: " + std::to_string(toBeSorted.size()) + "\r\nLowest time: " + std::to_string(fastestSort) + "\r\nHighest time: " + std::to_string(slowestSort) + "\r\nAverage time: " + std::to_string(averageSort) + "\r\nComparisons: " + std::to_string(amountOfComparisons) + "\r\nSwaps: " + std::to_string(steps.size()) + "\r\nIterations: " + std::to_string(amountOfIterations) + "\r\n";
+
+			UINT size = (wsBookmark.size() + 1) * sizeof(wchar_t);
+
+			wchar_t *ptr = (wchar_t *)CoTaskMemAlloc(size);
+			CopyMemory(ptr, wsBookmark.c_str(), size);
+
+			SendMessage(GetDlgItem(hwnd, STATS_DISPLAY), WM_SETTEXT, 0, (LPARAM)ptr);
+
+			InvalidateRect(hwnd, NULL, TRUE);
+			shouldVisualize = true;
+			InvalidateRect(w2, NULL, TRUE);
+
+			break;
+		}
+		case SHELL_SORT_BUTTON:
+		{
+			if (fromFile.size() < 1)
+			{
+				MessageBox(hwnd, "No data to sort", "Error", MB_OK);
+				break;
+			}
+
+			toBeSorted = fromFile;
+			visualizationArray = toBeSorted;
+
+			Sorts::sort(toBeSorted, passesAmount, &Sorts::shellSort);
+			steps.clear();
+			Sorts::shellSort(toBeSorted);
+
+			std::string wsBookmark = "Sorting Algorithm: Shell Sort\r\nAmount of objects: " + std::to_string(toBeSorted.size()) + "\r\nLowest time: " + std::to_string(fastestSort) + "\r\nHighest time: " + std::to_string(slowestSort) + "\r\nAverage time: " + std::to_string(averageSort) + "\r\nComparisons: " + std::to_string(amountOfComparisons) + "\r\nSwaps: " + std::to_string(steps.size()) + "\r\nIterations: " + std::to_string(amountOfIterations) + "\r\n";
+
+			UINT size = (wsBookmark.size() + 1) * sizeof(wchar_t);
+
+			wchar_t *ptr = (wchar_t *)CoTaskMemAlloc(size);
+			CopyMemory(ptr, wsBookmark.c_str(), size);
+
+			SendMessage(GetDlgItem(hwnd, STATS_DISPLAY), WM_SETTEXT, 0, (LPARAM)ptr);
+
+			InvalidateRect(hwnd, NULL, TRUE);
+			shouldVisualize = true;
+			InvalidateRect(w2, NULL, TRUE);
+
+			break;
+		}
+		case CYCLE_SORT_BUTTON:
+		{
+			if (fromFile.size() < 1)
+			{
+				MessageBox(hwnd, "No data to sort", "Error", MB_OK);
+				break;
+			}
+
+			toBeSorted = fromFile;
+			visualizationArray = toBeSorted;
+
+			Sorts::sort(toBeSorted, passesAmount, &Sorts::cycleSort);
+			steps.clear();
+			Sorts::cycleSort(toBeSorted);
+
+			std::string wsBookmark = "Sorting Algorithm: Cycle Sort\r\nAmount of objects: " + std::to_string(toBeSorted.size()) + "\r\nLowest time: " + std::to_string(fastestSort) + "\r\nHighest time: " + std::to_string(slowestSort) + "\r\nAverage time: " + std::to_string(averageSort) + "\r\nComparisons: " + std::to_string(amountOfComparisons) + "\r\nSwaps: " + std::to_string(steps.size()) + "\r\nIterations: " + std::to_string(amountOfIterations) + "\r\n";
+
+			UINT size = (wsBookmark.size() + 1) * sizeof(wchar_t);
+
+			wchar_t *ptr = (wchar_t *)CoTaskMemAlloc(size);
+			CopyMemory(ptr, wsBookmark.c_str(), size);
+
+			SendMessage(GetDlgItem(hwnd, STATS_DISPLAY), WM_SETTEXT, 0, (LPARAM)ptr);
+
+			InvalidateRect(hwnd, NULL, TRUE);
+			shouldVisualize = true;
+			InvalidateRect(w2, NULL, TRUE);
+
+			break;
+		}
+		case GNOME_SORT_BUTTON:
+		{
+			if (fromFile.size() < 1)
+			{
+				MessageBox(hwnd, "No data to sort", "Error", MB_OK);
+				break;
+			}
+
+			toBeSorted = fromFile;
+			visualizationArray = toBeSorted;
+
+			Sorts::sort(toBeSorted, passesAmount, &Sorts::gnomeSort);
+			steps.clear();
+			Sorts::gnomeSort(toBeSorted);
+
+			std::string wsBookmark = "Sorting Algorithm: Gnome Sort\r\nAmount of objects: " + std::to_string(toBeSorted.size()) + "\r\nLowest time: " + std::to_string(fastestSort) + "\r\nHighest time: " + std::to_string(slowestSort) + "\r\nAverage time: " + std::to_string(averageSort) + "\r\nComparisons: " + std::to_string(amountOfComparisons) + "\r\nSwaps: " + std::to_string(steps.size()) + "\r\nIterations: " + std::to_string(amountOfIterations) + "\r\n";
+
+			UINT size = (wsBookmark.size() + 1) * sizeof(wchar_t);
+
+			wchar_t *ptr = (wchar_t *)CoTaskMemAlloc(size);
+			CopyMemory(ptr, wsBookmark.c_str(), size);
+
+			SendMessage(GetDlgItem(hwnd, STATS_DISPLAY), WM_SETTEXT, 0, (LPARAM)ptr);
+
+			InvalidateRect(hwnd, NULL, TRUE);
+			shouldVisualize = true;
+			InvalidateRect(w2, NULL, TRUE);
+
+			break;
+		}
 		break;
+		}
 
 	case WM_PAINT:
 		hdc = BeginPaint(hwnd, &ps);
