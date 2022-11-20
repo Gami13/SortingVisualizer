@@ -14,6 +14,7 @@
 #include <thread>
 #include <algorithm>
 #include <numeric>
+#include <future>
 struct Step
 {
 	int i;
@@ -104,6 +105,10 @@ LRESULT CALLBACK Proc2(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
 	RECT fullPaint = {0, 0, VISUALIZATION_WIDTH, VISUALIZATION_HEIGHT};
 	HBRUSH solidBrush = CreateSolidBrush(RGB(0, 0, 0));
+	HBRUSH blackBrush = CreateSolidBrush(RGB(0, 0, 0));
+	HBRUSH whiteBrush = CreateSolidBrush(RGB(255, 255, 255));
+	HBRUSH redBrush = CreateSolidBrush(RGB(255, 0, 0));
+
 	HBRUSH greenBrush = CreateSolidBrush(RGB(0, 255, 0));
 
 	switch (msg)
@@ -121,21 +126,21 @@ LRESULT CALLBACK Proc2(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
 		if (shouldVisualize)
 		{
-			std::cout << "VISUALIZING..." << std::endl;
-			const double WIDTH_RATIO = (double)VISUALIZATION_WIDTH / visualizationArray.size();
-			const double HEIGHT_RATIO = (double)VISUALIZATION_HEIGHT / *std::max_element(visualizationArray.begin(), visualizationArray.end());
+			/* 		std::cout << "VISUALIZING..." << std::endl;
+					const double WIDTH_RATIO = (double)VISUALIZATION_WIDTH / visualizationArray.size();
+					const double HEIGHT_RATIO = (double)VISUALIZATION_HEIGHT / *std::max_element(visualizationArray.begin(), visualizationArray.end());
 
-			SelectObject(hdc, whitePen);
+					SelectObject(hdc, whitePen);
 
-			FillRect(hdc, &fullPaint, solidBrush);
+					FillRect(hdc, &fullPaint, solidBrush);
 
-			for (int i = 0; i < visualizationArray.size(); i++)
-			{
+					for (int i = 0; i < visualizationArray.size(); i++)
+					{
 
-				Rectangle(hdc, i * WIDTH_RATIO, VISUALIZATION_HEIGHT - visualizationArray[i] * HEIGHT_RATIO, (i + 1) * WIDTH_RATIO, VISUALIZATION_HEIGHT);
-			}
+						Rectangle(hdc, i * WIDTH_RATIO, VISUALIZATION_HEIGHT - visualizationArray[i] * HEIGHT_RATIO, (i + 1) * WIDTH_RATIO, VISUALIZATION_HEIGHT);
+					} */
 
-			for (int i = 0; i < steps.size(); i++)
+			/* for (int i = 0; i < steps.size(); i++)
 			{
 
 				std::swap(visualizationArray[steps[i].i], visualizationArray[steps[i].j]);
@@ -161,11 +166,18 @@ LRESULT CALLBACK Proc2(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 				SelectObject(hdc, whitePen);
 				Rectangle(hdc, si1, si2, si3, VISUALIZATION_HEIGHT);
 				Rectangle(hdc, sj1, sj2, sj3, VISUALIZATION_HEIGHT);
-			}
+			} */
 
-			steps.clear();
+			/* 			steps.clear();
 
-			shouldVisualize = false;
+						shouldVisualize = false; */
+
+			(hdc, si1, si2, si3, VISUALIZATION_HEIGHT);
+			Rectangle(hdc, sj1, sj2, sj3, VISUALIZATION_HEIGHT);
+
+			std::this_thread::sleep_for(std::chrono::milliseconds(stepsDelay));
+			Rectangle(hdc, si1, si2, si3, VISUALIZATION_HEIGHT);
+			Rectangle(hdc, sj1, sj2, sj3, VISUALIZATION_HEIGHT);
 		}
 
 		EndPaint(hwnd, &ps);
@@ -224,6 +236,24 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 	}
 
 	return (int)msg.wParam;
+}
+RECT rect1;
+RECT rect2;
+bool clearVisualization = false;
+int visualize()
+{
+	clearVisualization = true;
+	InvalidateRect(w2, NULL, TRUE);
+	UpdateWindow(w2);
+
+	const double WIDTH_RATIO = (double)VISUALIZATION_WIDTH / visualizationArray.size();
+	const double HEIGHT_RATIO = (double)VISUALIZATION_HEIGHT / *std::max_element(visualizationArray.begin(), visualizationArray.end());
+	for (int i = 0; i < steps.size(); i++)
+	{
+		std::swap(visualizationArray[steps[i].i], visualizationArray[steps[i].j]);
+		rect1 = {(int)(steps[0].i * WIDTH_RATIO), 0, (int)((steps[0].i + 1) * WIDTH_RATIO), VISUALIZATION_HEIGHT};
+		rect2 = {(int)(steps[0].j * WIDTH_RATIO), 0, (int)((steps[0].j + 1) * WIDTH_RATIO), VISUALIZATION_HEIGHT};
+	}
 }
 
 /* BOOL CALLBACK EnumChildProc(HWND hwndChild, LPARAM lParam); */
@@ -397,6 +427,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 				random.push_back(rand() % 10000);
 			}
 			fromFile = random;
+			SendMessage(GetDlgItem(hwnd, UNSORTED_DISPLAY), WM_SETTEXT, 0, (LPARAM)vectorToString(fromFile).c_str());
 			InvalidateRect(hwnd, NULL, TRUE);
 			break;
 		}
@@ -420,6 +451,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 			fromFile = Files::loadFrom(filepath);
 			/* 	std::cout << fromFile << std::endl; */
 			std::cout << filepath << std::endl;
+			SendMessage(GetDlgItem(hwnd, UNSORTED_DISPLAY), WM_SETTEXT, 0, (LPARAM)vectorToString(fromFile).c_str());
 			InvalidateRect(hwnd, NULL, TRUE);
 
 			break;
@@ -448,7 +480,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 			CopyMemory(ptr, wsBookmark.c_str(), size);
 
 			SendMessage(GetDlgItem(hwnd, STATS_DISPLAY), WM_SETTEXT, 0, (LPARAM)ptr);
-
+			SendMessage(GetDlgItem(hwnd, SORTED_DISPLAY), WM_SETTEXT, 0, (LPARAM)vectorToString(toBeSorted).c_str());
 			InvalidateRect(hwnd, NULL, TRUE);
 			shouldVisualize = true;
 
@@ -479,7 +511,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 			CopyMemory(ptr, wsBookmark.c_str(), size);
 
 			SendMessage(GetDlgItem(hwnd, STATS_DISPLAY), WM_SETTEXT, 0, (LPARAM)ptr);
-
+			SendMessage(GetDlgItem(hwnd, SORTED_DISPLAY), WM_SETTEXT, 0, (LPARAM)vectorToString(toBeSorted).c_str());
 			InvalidateRect(hwnd, NULL, TRUE);
 			shouldVisualize = true;
 			InvalidateRect(w2, NULL, TRUE);
@@ -509,7 +541,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 			CopyMemory(ptr, wsBookmark.c_str(), size);
 
 			SendMessage(GetDlgItem(hwnd, STATS_DISPLAY), WM_SETTEXT, 0, (LPARAM)ptr);
-
+			SendMessage(GetDlgItem(hwnd, SORTED_DISPLAY), WM_SETTEXT, 0, (LPARAM)vectorToString(toBeSorted).c_str());
 			InvalidateRect(hwnd, NULL, TRUE);
 			shouldVisualize = true;
 			InvalidateRect(w2, NULL, TRUE);
@@ -539,6 +571,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 			CopyMemory(ptr, wsBookmark.c_str(), size);
 
 			SendMessage(GetDlgItem(hwnd, STATS_DISPLAY), WM_SETTEXT, 0, (LPARAM)ptr);
+			SendMessage(GetDlgItem(hwnd, SORTED_DISPLAY), WM_SETTEXT, 0, (LPARAM)vectorToString(toBeSorted).c_str());
 
 			InvalidateRect(hwnd, NULL, TRUE);
 			shouldVisualize = true;
@@ -569,6 +602,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 			CopyMemory(ptr, wsBookmark.c_str(), size);
 
 			SendMessage(GetDlgItem(hwnd, STATS_DISPLAY), WM_SETTEXT, 0, (LPARAM)ptr);
+			SendMessage(GetDlgItem(hwnd, SORTED_DISPLAY), WM_SETTEXT, 0, (LPARAM)vectorToString(toBeSorted).c_str());
 
 			InvalidateRect(hwnd, NULL, TRUE);
 			shouldVisualize = true;
@@ -599,6 +633,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 			CopyMemory(ptr, wsBookmark.c_str(), size);
 
 			SendMessage(GetDlgItem(hwnd, STATS_DISPLAY), WM_SETTEXT, 0, (LPARAM)ptr);
+			SendMessage(GetDlgItem(hwnd, SORTED_DISPLAY), WM_SETTEXT, 0, (LPARAM)vectorToString(toBeSorted).c_str());
 
 			InvalidateRect(hwnd, NULL, TRUE);
 			shouldVisualize = true;
@@ -629,6 +664,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 			CopyMemory(ptr, wsBookmark.c_str(), size);
 
 			SendMessage(GetDlgItem(hwnd, STATS_DISPLAY), WM_SETTEXT, 0, (LPARAM)ptr);
+			SendMessage(GetDlgItem(hwnd, SORTED_DISPLAY), WM_SETTEXT, 0, (LPARAM)vectorToString(toBeSorted).c_str());
 
 			InvalidateRect(hwnd, NULL, TRUE);
 			shouldVisualize = true;
@@ -659,6 +695,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 			CopyMemory(ptr, wsBookmark.c_str(), size);
 
 			SendMessage(GetDlgItem(hwnd, STATS_DISPLAY), WM_SETTEXT, 0, (LPARAM)ptr);
+			SendMessage(GetDlgItem(hwnd, SORTED_DISPLAY), WM_SETTEXT, 0, (LPARAM)vectorToString(toBeSorted).c_str());
 
 			InvalidateRect(hwnd, NULL, TRUE);
 			shouldVisualize = true;
@@ -689,6 +726,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 			CopyMemory(ptr, wsBookmark.c_str(), size);
 
 			SendMessage(GetDlgItem(hwnd, STATS_DISPLAY), WM_SETTEXT, 0, (LPARAM)ptr);
+			SendMessage(GetDlgItem(hwnd, SORTED_DISPLAY), WM_SETTEXT, 0, (LPARAM)vectorToString(toBeSorted).c_str());
 
 			InvalidateRect(hwnd, NULL, TRUE);
 			shouldVisualize = true;
@@ -719,6 +757,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 			CopyMemory(ptr, wsBookmark.c_str(), size);
 
 			SendMessage(GetDlgItem(hwnd, STATS_DISPLAY), WM_SETTEXT, 0, (LPARAM)ptr);
+			SendMessage(GetDlgItem(hwnd, SORTED_DISPLAY), WM_SETTEXT, 0, (LPARAM)vectorToString(toBeSorted).c_str());
 
 			InvalidateRect(hwnd, NULL, TRUE);
 			shouldVisualize = true;
@@ -735,7 +774,9 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 		TextOut(hdc, BUTTON_MARGIN, BUTTON_MARGIN + 2 * (BUTTON_HEIGHT + BUTTON_MARGIN), "Amount to generate:", 19);
 		TextOut(hdc, BUTTON_MARGIN, (BUTTON_HEIGHT + BUTTON_MARGIN) * 9 + GENERATOR_HEIGHT, "Statistics:", 11);
 		TextOut(hdc, BUTTON_MARGIN, BUTTON_MARGIN + (BUTTON_HEIGHT + BUTTON_MARGIN) * 8.5, "Passes:", 7);
-		TextOut(hdc, BUTTON_MARGIN + SHORT_BUTTON_WIDTH + BUTTON_MARGIN, BUTTON_MARGIN + (BUTTON_HEIGHT + BUTTON_MARGIN) * 8.5, "Steps:", 6);
+		TextOut(hdc, BUTTON_MARGIN + SHORT_BUTTON_WIDTH + BUTTON_MARGIN, BUTTON_MARGIN + (BUTTON_HEIGHT + BUTTON_MARGIN) * 8.5, "Step delay:", 11);
+		TextOut(hdc, BUTTON_MARGIN + BUTTON_WIDTH + BUTTON_MARGIN, VISUALIZATION_HEIGHT + BUTTON_MARGIN * 4 - 20, "Unsorted:", 9);
+		TextOut(hdc, BUTTON_MARGIN + BUTTON_WIDTH + BUTTON_MARGIN + ((VISUALIZATION_WIDTH / 2) - BUTTON_MARGIN / 2) + BUTTON_MARGIN, VISUALIZATION_HEIGHT + BUTTON_MARGIN * 4 - 20, "Sorted:", 7);
 
 		EndPaint(hwnd, &ps);
 		break;
